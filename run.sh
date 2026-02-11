@@ -150,4 +150,4 @@ download_if_not_exists "hubert_base.pt" "https://huggingface.co/lj1995/VoiceConv
 download_if_not_exists "rmvpe.pt" "https://huggingface.co/lj1995/VoiceConversionWebUI/resolve/main/rmvpe.pt"
 
 # Run the main script
-python3.8 infer-web.py --pycmd python3.8
+python3.8 rvc_app.py
