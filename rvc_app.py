@@ -16,25 +16,14 @@ os.environ.setdefault("QT_AUTO_SCREEN_SCALE_FACTOR", "1")
 
 def main() -> int:
     from PyQt6.QtWidgets import QApplication
-    from PyQt6.QtCore import Qt
 
-    # Enable high-DPI pixmaps
     app = QApplication(sys.argv)
     app.setApplicationName("Mangio-RVC-Fork")
     app.setStyle("Fusion")
 
-    # Centralised stylesheet
-    app.setStyleSheet(
-        """
-        QMainWindow {
-            background-color: #1e1e2e;
-        }
-        QLabel {
-            color: #cdd6f4;
-            font-size: 16px;
-        }
-        """
-    )
+    # Centralised stylesheet (Catppuccin Mocha dark theme)
+    from ui.style import STYLESHEET
+    app.setStyleSheet(STYLESHEET)
 
     from ui.main_window import RVCMainWindow
 
