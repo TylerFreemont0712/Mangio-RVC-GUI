@@ -56,7 +56,7 @@ basev2: ## Download version 2 pre-trained models (Do only once after cloning the
 	aria2c --console-log-level=error -c -x 16 -s 16 -k 1M https://huggingface.co/lj1995/VoiceConversionWebUI/resolve/main/rmvpe.pt -d ./ -o rmvpe.pt
 
 run-ui: ## Run the python GUI
-	python infer-web.py --paperspace --pycmd python
+	python rvc_app.py
 
 run-cli: ## Run the python CLI
 	python infer-web.py --pycmd python --is_cli

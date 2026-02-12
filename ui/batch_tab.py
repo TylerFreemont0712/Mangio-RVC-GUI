@@ -17,7 +17,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from workers.backend_worker import BackendWorker
+from workers.backend_worker import BackendWorker, lazy_backend_call
 
 _WEIGHTS_DIR = os.path.join(os.getcwd(), "weights")
 _LOGS_DIR = os.path.join(os.getcwd(), "logs")
@@ -56,7 +56,9 @@ class BatchTab(QWidget):
         mg = QHBoxLayout(model_group)
         self.model_combo = QComboBox()
         self.model_combo.addItems(_scan_weights())
+        self.model_combo.setToolTip("Voice model (.pth) applied to every file in the batch.")
         self.refresh_btn = QPushButton("Refresh")
+        self.refresh_btn.setToolTip("Re-scan weights/ and logs/ for new models and indexes.")
         mg.addWidget(QLabel("Voice Model:"))
         mg.addWidget(self.model_combo, 1)
         mg.addWidget(self.refresh_btn)
@@ -68,6 +70,7 @@ class BatchTab(QWidget):
         r1 = QHBoxLayout()
         r1.addWidget(QLabel("Input Directory:"))
         self.input_dir = QLineEdit()
+        self.input_dir.setToolTip("Folder containing audio files to convert (wav, mp3, flac, ogg).")
         self.input_dir_btn = QPushButton("Browse")
         r1.addWidget(self.input_dir, 1)
         r1.addWidget(self.input_dir_btn)
@@ -89,6 +92,7 @@ class BatchTab(QWidget):
         r3.addWidget(QLabel("Transpose:"))
         self.transpose_spin = QSpinBox()
         self.transpose_spin.setRange(-24, 24)
+        self.transpose_spin.setToolTip("Pitch shift in semitones. +12 = one octave up.")
         r3.addWidget(self.transpose_spin)
         r3.addSpacing(12)
         r3.addWidget(QLabel("F0 Method:"))
@@ -96,12 +100,20 @@ class BatchTab(QWidget):
         self.f0_combo.addItems(
             ["pm", "harvest", "crepe", "mangio-crepe", "mangio-crepe-tiny", "rmvpe"]
         )
+        self.f0_combo.setToolTip(
+            "Pitch detection: pm=fast, harvest=smooth, rmvpe=best overall.\n"
+            "Crepe variants use GPU. For large batches, pm or rmvpe save time."
+        )
         r3.addWidget(self.f0_combo)
         r3.addSpacing(12)
         r3.addWidget(QLabel("Crepe Hop:"))
         self.crepe_hop = QSpinBox()
         self.crepe_hop.setRange(64, 512)
         self.crepe_hop.setValue(160)
+        self.crepe_hop.setToolTip(
+            "Crepe hop length. Lower = better pitch accuracy, slower.\n"
+            "Only used with crepe/mangio-crepe F0 methods."
+        )
         r3.addWidget(self.crepe_hop)
         pg.addLayout(r3)
 
@@ -110,6 +122,7 @@ class BatchTab(QWidget):
         self.index_combo = QComboBox()
         self.index_combo.setEditable(True)
         self.index_combo.addItems(_scan_indexes())
+        self.index_combo.setToolTip("FAISS index file for voice timbre matching.")
         r4.addWidget(self.index_combo, 1)
         r4.addSpacing(12)
         r4.addWidget(QLabel("Index Rate:"))
@@ -117,6 +130,7 @@ class BatchTab(QWidget):
         self.index_rate.setRange(0.0, 1.0)
         self.index_rate.setSingleStep(0.05)
         self.index_rate.setValue(0.78)
+        self.index_rate.setToolTip("Index retrieval blend. Higher = more like training voice. 0.5-0.8 typical.")
         r4.addWidget(self.index_rate)
         pg.addLayout(r4)
 
@@ -125,6 +139,7 @@ class BatchTab(QWidget):
         self.filter_spin = QSpinBox()
         self.filter_spin.setRange(0, 7)
         self.filter_spin.setValue(3)
+        self.filter_spin.setToolTip("Median filter on F0. Higher = smoother pitch, less expressive.")
         r5.addWidget(self.filter_spin)
         r5.addSpacing(12)
         r5.addWidget(QLabel("RMS Mix:"))
@@ -132,6 +147,7 @@ class BatchTab(QWidget):
         self.rms_mix.setRange(0.0, 1.0)
         self.rms_mix.setSingleStep(0.05)
         self.rms_mix.setValue(1.0)
+        self.rms_mix.setToolTip("Volume envelope: 0=original dynamics, 1=converted voice volume.")
         r5.addWidget(self.rms_mix)
         r5.addSpacing(12)
         r5.addWidget(QLabel("Protect:"))
@@ -139,16 +155,24 @@ class BatchTab(QWidget):
         self.protect.setRange(0.0, 0.5)
         self.protect.setSingleStep(0.01)
         self.protect.setValue(0.33)
+        self.protect.setToolTip("Consonant protection. Lower = crisper consonants. 0.5 = off.")
         r5.addWidget(self.protect)
         r5.addSpacing(12)
         r5.addWidget(QLabel("Resample:"))
         self.resample_spin = QSpinBox()
         self.resample_spin.setRange(0, 48000)
+        self.resample_spin.setToolTip("Output sample rate. 0 = keep model's native rate.")
         r5.addWidget(self.resample_spin)
         r5.addSpacing(12)
         r5.addWidget(QLabel("Format:"))
         self.format_combo = QComboBox()
         self.format_combo.addItems(["wav", "flac", "mp3", "ogg", "aac"])
+        self.format_combo.setToolTip(
+            "Output audio format.\n"
+            "wav: Lossless, largest files. Best for further editing.\n"
+            "flac: Lossless, compressed. Good balance of quality and size.\n"
+            "mp3/ogg/aac: Lossy, smallest files. Good for distribution."
+        )
         r5.addWidget(self.format_combo)
         pg.addLayout(r5)
         root.addWidget(params_group)
@@ -191,16 +215,14 @@ class BatchTab(QWidget):
             self.output_dir.setText(d)
 
     def _run_batch(self):
-        import importlib
-        backend = importlib.import_module("infer-web")
-
         self.convert_btn.setEnabled(False)
         self.log_area.clear()
         self.log_area.append("Starting batch conversion ...")
 
         self._worker = BackendWorker(
-            backend.vc_multi,
+            lazy_backend_call,
             args=(
+                "vc_multi",
                 0,
                 self.input_dir.text().strip(),
                 self.output_dir.text().strip() or "audio-outputs",

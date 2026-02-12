@@ -16,7 +16,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from workers.backend_worker import BackendWorker
+from workers.backend_worker import BackendWorker, lazy_backend_call
 
 _UVR5_DIR = os.path.join(os.getcwd(), "uvr5_weights")
 
@@ -48,7 +48,13 @@ class UVR5Tab(QWidget):
         mg.addWidget(QLabel("UVR5 Model:"))
         self.model_combo = QComboBox()
         self.model_combo.addItems(_scan_uvr5())
+        self.model_combo.setToolTip(
+            "UVR5 separation model.\n"
+            "HP2: General vocal/instrumental separation.\n"
+            "HP5: Main vocal extraction (isolates lead vocals)."
+        )
         self.refresh_btn = QPushButton("Refresh")
+        self.refresh_btn.setToolTip("Re-scan uvr5_weights/ for available models.")
         mg.addWidget(self.model_combo, 1)
         mg.addWidget(self.refresh_btn)
         root.addWidget(model_group)
@@ -60,6 +66,7 @@ class UVR5Tab(QWidget):
         r1.addWidget(QLabel("Input Directory:"))
         self.input_dir = QLineEdit()
         self.input_dir.setPlaceholderText("Path to audio files")
+        self.input_dir.setToolTip("Folder containing audio files to separate.")
         self.input_browse = QPushButton("Browse")
         r1.addWidget(self.input_dir, 1)
         r1.addWidget(self.input_browse)
@@ -67,6 +74,7 @@ class UVR5Tab(QWidget):
         r2 = QHBoxLayout()
         r2.addWidget(QLabel("Vocal Output:"))
         self.vocal_dir = QLineEdit("opt/vocal")
+        self.vocal_dir.setToolTip("Output folder for extracted vocal tracks.")
         self.vocal_browse = QPushButton("Browse")
         r2.addWidget(self.vocal_dir, 1)
         r2.addWidget(self.vocal_browse)
@@ -74,6 +82,7 @@ class UVR5Tab(QWidget):
         r3 = QHBoxLayout()
         r3.addWidget(QLabel("Instrument Output:"))
         self.inst_dir = QLineEdit("opt/ins")
+        self.inst_dir.setToolTip("Output folder for extracted instrumental tracks.")
         self.inst_browse = QPushButton("Browse")
         r3.addWidget(self.inst_dir, 1)
         r3.addWidget(self.inst_browse)
@@ -87,11 +96,22 @@ class UVR5Tab(QWidget):
         self.agg_spin = QSpinBox()
         self.agg_spin.setRange(0, 20)
         self.agg_spin.setValue(10)
+        self.agg_spin.setToolTip(
+            "Separation aggressiveness.\n"
+            "Higher = more aggressive vocal/instrument split.\n"
+            "Low (5): Gentle, preserves quality but may leave bleed.\n"
+            "Medium (10): Balanced (recommended).\n"
+            "High (15-20): Cleaner split but may introduce artifacts."
+        )
         ppg.addWidget(self.agg_spin)
         ppg.addSpacing(20)
         ppg.addWidget(QLabel("Output Format:"))
         self.format_combo = QComboBox()
         self.format_combo.addItems(["wav", "flac", "mp3"])
+        self.format_combo.setToolTip(
+            "Output audio format. wav = lossless (best for further processing).\n"
+            "flac = lossless compressed. mp3 = lossy, smallest file size."
+        )
         ppg.addWidget(self.format_combo)
         ppg.addStretch()
         root.addWidget(param_group)
@@ -100,6 +120,7 @@ class UVR5Tab(QWidget):
         btn_row = QHBoxLayout()
         self.run_btn = QPushButton("Separate")
         self.run_btn.setMinimumHeight(38)
+        self.run_btn.setToolTip("Start vocal/instrumental separation on all files in the input directory.")
         btn_row.addStretch()
         btn_row.addWidget(self.run_btn)
         btn_row.addStretch()
@@ -127,13 +148,12 @@ class UVR5Tab(QWidget):
             target.setText(d)
 
     def _run(self):
-        import importlib
-        backend = importlib.import_module("infer-web")
         self.run_btn.setEnabled(False)
         self.log_area.clear()
         self._worker = BackendWorker(
-            backend.uvr,
+            lazy_backend_call,
             args=(
+                "uvr",
                 self.model_combo.currentText(),
                 self.input_dir.text().strip(),
                 self.vocal_dir.text().strip(),

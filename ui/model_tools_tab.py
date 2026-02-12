@@ -38,8 +38,10 @@ class ModelToolsTab(QWidget):
         r1.addWidget(QLabel("Model Path:"))
         self.info_path = QLineEdit()
         self.info_path.setPlaceholderText("weights/model.pth")
+        self.info_path.setToolTip("Path to a .pth model file to inspect metadata.")
         self.info_browse = QPushButton("Browse")
         self.info_btn = QPushButton("Show Info")
+        self.info_btn.setToolTip("Display embedded metadata (training info, epoch, sample rate).")
         r1.addWidget(self.info_path, 1)
         r1.addWidget(self.info_browse)
         r1.addWidget(self.info_btn)
@@ -53,6 +55,10 @@ class ModelToolsTab(QWidget):
         r2.addWidget(QLabel("Checkpoint:"))
         self.ext_path = QLineEdit()
         self.ext_path.setPlaceholderText("logs/experiment/G_xxxx.pth")
+        self.ext_path.setToolTip(
+            "Training checkpoint (G_xxxx.pth) to extract into a small inference model.\n"
+            "Found in logs/<experiment>/ after training."
+        )
         self.ext_browse = QPushButton("Browse")
         r2.addWidget(self.ext_path, 1)
         r2.addWidget(self.ext_browse)
@@ -61,15 +67,18 @@ class ModelToolsTab(QWidget):
         r3.addWidget(QLabel("Save Name:"))
         self.ext_name = QLineEdit()
         self.ext_name.setPlaceholderText("MyModel")
+        self.ext_name.setToolTip("Name for the extracted model. Saved to weights/<name>.pth.")
         r3.addWidget(self.ext_name, 1)
         r3.addSpacing(12)
         r3.addWidget(QLabel("SR:"))
         self.ext_sr = QComboBox()
         self.ext_sr.addItems(["40k", "48k", "32k"])
+        self.ext_sr.setToolTip("Sample rate. Must match what the model was trained with.")
         r3.addWidget(self.ext_sr)
         r3.addSpacing(12)
         self.ext_f0 = QCheckBox("Pitch Guidance")
         self.ext_f0.setChecked(True)
+        self.ext_f0.setToolTip("Must match the training config (enabled for singing, optional for speech).")
         r3.addWidget(self.ext_f0)
         r3.addSpacing(12)
         r3.addWidget(QLabel("Version:"))
@@ -84,6 +93,10 @@ class ModelToolsTab(QWidget):
         r3b.addWidget(self.ext_info, 1)
         r3b.addSpacing(12)
         self.ext_btn = QPushButton("Extract")
+        self.ext_btn.setToolTip(
+            "Extract a small, inference-ready model from a training checkpoint.\n"
+            "Removes optimizer state to reduce file size (~60 MB vs ~300 MB)."
+        )
         r3b.addWidget(self.ext_btn)
         eg.addLayout(r3b)
         root.addWidget(ext_group)
@@ -110,6 +123,10 @@ class ModelToolsTab(QWidget):
         self.merge_alpha.setRange(0.0, 1.0)
         self.merge_alpha.setSingleStep(0.1)
         self.merge_alpha.setValue(0.5)
+        self.merge_alpha.setToolTip(
+            "Blending weight. 1.0 = 100% Model A, 0.0 = 100% Model B.\n"
+            "0.5 = equal blend. Adjust to favor one voice over the other."
+        )
         r5.addWidget(self.merge_alpha)
         r5.addSpacing(12)
         r5.addWidget(QLabel("SR:"))
@@ -137,6 +154,10 @@ class ModelToolsTab(QWidget):
         r5b.addWidget(self.merge_info, 1)
         r5b.addSpacing(12)
         self.merge_btn = QPushButton("Merge")
+        self.merge_btn.setToolTip(
+            "Merge two models into a hybrid voice.\n"
+            "Both models must share the same version, SR, and pitch guidance setting."
+        )
         r5b.addWidget(self.merge_btn)
         mrg.addLayout(r5b)
         root.addWidget(merge_group)
@@ -159,6 +180,10 @@ class ModelToolsTab(QWidget):
         og.addWidget(self.onnx_dst_browse)
         og.addSpacing(8)
         self.onnx_btn = QPushButton("Export")
+        self.onnx_btn.setToolTip(
+            "Export model to ONNX format for optimized inference.\n"
+            "ONNX models can run on CPU, DirectML, and other runtimes."
+        )
         og.addWidget(self.onnx_btn)
         root.addWidget(onnx_group)
 
@@ -239,13 +264,13 @@ class ModelToolsTab(QWidget):
         self._worker.start()
 
     def _export_onnx(self):
-        import importlib
-        backend = importlib.import_module("infer-web")
+        from workers.backend_worker import lazy_backend_call
+
         self.log_area.clear()
         self.onnx_btn.setEnabled(False)
         self._worker = BackendWorker(
-            backend.export_onnx,
-            args=(self.onnx_src.text().strip(), self.onnx_dst.text().strip()),
+            lazy_backend_call,
+            args=("export_onnx", self.onnx_src.text().strip(), self.onnx_dst.text().strip()),
         )
         self._worker.result.connect(self._on_result)
         self._worker.error.connect(self._on_error)

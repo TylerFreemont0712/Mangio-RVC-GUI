@@ -11,6 +11,17 @@ def _backend():
     return importlib.import_module("infer-web")
 
 
+def lazy_backend_call(func_name, *args, **kwargs):
+    """Import the backend inside the calling thread and invoke *func_name*.
+
+    This is intended to be used as the *func* argument of
+    :class:`BackendWorker` so that the expensive first-import of
+    ``infer-web`` happens in the worker thread, not on the GUI thread.
+    """
+    backend = _backend()
+    return getattr(backend, func_name)(*args, **kwargs)
+
+
 class BackendWorker(QThread):
     """Generic worker: runs *func* with *args* / *kwargs* in a background thread.
 
@@ -29,13 +40,20 @@ class BackendWorker(QThread):
         self._args = args
         self._kwargs = kwargs or {}
         self._is_generator = is_generator
+        self._abort = False
+
+    def abort(self):
+        """Request the worker to stop at the next yield point."""
+        self._abort = True
 
     def run(self):
         try:
             ret = self._func(*self._args, **self._kwargs)
             if self._is_generator:
-                last = None
+                last = ""
                 for msg in ret:
+                    if self._abort:
+                        break
                     last = msg
                     self.log.emit(str(msg))
                 self.result.emit(last)

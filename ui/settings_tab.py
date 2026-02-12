@@ -44,6 +44,12 @@ class SettingsTab(QWidget):
         fg = QVBoxLayout(fmt_group)
         r1 = QHBoxLayout()
         self.formant_enabled = QCheckBox("Enable Formant Shifting")
+        self.formant_enabled.setToolTip(
+            "Apply formant shifting during voice conversion.\n"
+            "Preserves natural vocal formants when pitch-shifting,\n"
+            "preventing the 'chipmunk' or 'giant' effect on large shifts.\n"
+            "Recommended when transpose is more than +/-6 semitones."
+        )
         r1.addWidget(self.formant_enabled)
         r1.addStretch()
         fg.addLayout(r1)
@@ -54,6 +60,11 @@ class SettingsTab(QWidget):
         self.quefrency.setRange(0.0, 16.0)
         self.quefrency.setSingleStep(0.1)
         self.quefrency.setValue(1.0)
+        self.quefrency.setToolTip(
+            "Controls the formant shift amount.\n"
+            "Higher values shift formants more aggressively.\n"
+            "1.0 is a safe default. Increase for deeper voice modifications."
+        )
         r2.addWidget(self.quefrency)
         r2.addSpacing(16)
         r2.addWidget(QLabel("Timbre:"))
@@ -61,6 +72,11 @@ class SettingsTab(QWidget):
         self.timbre.setRange(0.0, 16.0)
         self.timbre.setSingleStep(0.1)
         self.timbre.setValue(1.0)
+        self.timbre.setToolTip(
+            "Controls timbre preservation during formant shift.\n"
+            "Higher values apply more timbre modification.\n"
+            "1.0 is a natural default. Adjust to fine-tune voice character."
+        )
         r2.addWidget(self.timbre)
         r2.addSpacing(16)
         self.apply_formant_btn = QPushButton("Apply")
@@ -73,6 +89,7 @@ class SettingsTab(QWidget):
         self.preset_combo = QComboBox()
         self.preset_combo.setEditable(True)
         self.preset_combo.addItems(_scan_formant_presets())
+        self.preset_combo.setToolTip("Saved formant shift presets from formantshiftcfg/ folder.")
         self.preset_refresh = QPushButton("Refresh")
         self.preset_apply_btn = QPushButton("Load Preset")
         r3.addWidget(self.preset_combo, 1)
@@ -140,7 +157,7 @@ class SettingsTab(QWidget):
             t = self.timbre.value()
             CSVutil("csvdb/formanting.csv", "w+", "formanting", enabled, q, t)
         except Exception as exc:
-            self.device_info.append(f"\nFormant apply error: {exc}")
+            self._show_status(f"Formant apply error: {exc}")
 
     def _refresh_presets(self):
         self.preset_combo.clear()
@@ -159,4 +176,10 @@ class SettingsTab(QWidget):
             self.timbre.setValue(t)
             self._apply_formant()
         except Exception as exc:
-            self.device_info.append(f"\nPreset load error: {exc}")
+            self._show_status(f"Preset load error: {exc}")
+
+    def _show_status(self, msg: str):
+        """Append a status message to device_info (temporarily allows writes)."""
+        self.device_info.setReadOnly(False)
+        self.device_info.append(msg)
+        self.device_info.setReadOnly(True)

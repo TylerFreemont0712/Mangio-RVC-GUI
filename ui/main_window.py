@@ -50,9 +50,15 @@ class RVCMainWindow(QMainWindow):
 
     def _cleanup(self) -> None:
         """Release resources and stop background threads before exit."""
-        for tab in (self.inference_tab, self.batch_tab, self.training_tab,
-                    self.model_tools_tab, self.uvr5_tab):
-            worker = getattr(tab, "_worker", None)
-            if worker is not None and worker.isRunning():
-                worker.quit()
-                worker.wait(3000)
+        all_tabs = (
+            self.inference_tab, self.batch_tab, self.training_tab,
+            self.model_tools_tab, self.uvr5_tab, self.settings_tab,
+        )
+        for tab in all_tabs:
+            for attr in ("_worker", "_model_worker"):
+                worker = getattr(tab, attr, None)
+                if worker is not None and worker.isRunning():
+                    if hasattr(worker, "abort"):
+                        worker.abort()
+                    worker.quit()
+                    worker.wait(3000)

@@ -132,6 +132,16 @@ QCheckBox::indicator:checked, QRadioButton::indicator:checked {
 QLabel { color: #cdd6f4; }
 QLabel[heading="true"] { font-size: 15px; font-weight: bold; color: #89b4fa; }
 
+/* ── Tooltips ─────────────────────────────────────────────────────── */
+QToolTip {
+    background-color: #313244;
+    color: #cdd6f4;
+    border: 1px solid #585b70;
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 12px;
+}
+
 /* ── Scroll bars ──────────────────────────────────────────────────── */
 QScrollBar:vertical {
     background: #181825; width: 8px; border-radius: 4px;

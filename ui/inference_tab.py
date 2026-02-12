@@ -61,8 +61,17 @@ class InferenceTab(QWidget):
         self.model_combo = QComboBox()
         self.model_combo.addItems(_scan_weights())
         self.model_combo.setMinimumWidth(220)
+        self.model_combo.setToolTip(
+            "Select a .pth voice model from the weights/ folder.\n"
+            "The model determines whose voice characteristics are applied."
+        )
         self.refresh_btn = QPushButton("Refresh")
+        self.refresh_btn.setToolTip("Re-scan weights/ and logs/ for new models and indexes.")
         self.load_btn = QPushButton("Load Model")
+        self.load_btn.setToolTip(
+            "Load the selected model into GPU memory.\n"
+            "Must be done before conversion. First load may take several seconds."
+        )
         mg.addWidget(QLabel("Voice Model:"))
         mg.addWidget(self.model_combo, 1)
         mg.addWidget(self.refresh_btn)
@@ -89,6 +98,11 @@ class InferenceTab(QWidget):
         self.transpose_spin = QSpinBox()
         self.transpose_spin.setRange(-24, 24)
         self.transpose_spin.setValue(0)
+        self.transpose_spin.setToolTip(
+            "Shift pitch in semitones. +12 = one octave up.\n"
+            "Male-to-female: try +12. Female-to-male: try -12.\n"
+            "Does not affect processing speed."
+        )
         r1.addWidget(self.transpose_spin)
         r1.addSpacing(16)
         r1.addWidget(QLabel("F0 Method:"))
@@ -96,12 +110,26 @@ class InferenceTab(QWidget):
         self.f0_combo.addItems(
             ["pm", "harvest", "crepe", "mangio-crepe", "mangio-crepe-tiny", "rmvpe"]
         )
+        self.f0_combo.setToolTip(
+            "Pitch detection algorithm — affects quality and speed:\n"
+            "  pm: Fastest, lower quality. Good for quick tests.\n"
+            "  harvest: Slow, smooth pitch. Good for singing.\n"
+            "  crepe: GPU-accelerated, high quality. Needs more VRAM.\n"
+            "  mangio-crepe: Crepe variant with adjustable hop length.\n"
+            "  rmvpe: Best overall quality and speed balance (recommended)."
+        )
         r1.addWidget(self.f0_combo)
         r1.addSpacing(16)
         r1.addWidget(QLabel("Crepe Hop:"))
         self.crepe_hop_spin = QSpinBox()
         self.crepe_hop_spin.setRange(64, 512)
         self.crepe_hop_spin.setValue(160)
+        self.crepe_hop_spin.setToolTip(
+            "Hop length for crepe/mangio-crepe F0 methods.\n"
+            "Lower = finer pitch resolution but slower processing.\n"
+            "64: Very detailed, slow. 128: Balanced. 512: Fast, less precise.\n"
+            "Only used when F0 method is crepe or mangio-crepe."
+        )
         r1.addWidget(self.crepe_hop_spin)
         pg.addLayout(r1)
 
@@ -111,6 +139,11 @@ class InferenceTab(QWidget):
         self.filter_spin = QSpinBox()
         self.filter_spin.setRange(0, 7)
         self.filter_spin.setValue(3)
+        self.filter_spin.setToolTip(
+            "Median filter radius applied to the extracted pitch (F0).\n"
+            "Higher values smooth out pitch jitter but may lose\n"
+            "expressiveness. 0 = off, 3 = balanced, 7 = very smooth."
+        )
         r2.addWidget(self.filter_spin)
         r2.addSpacing(16)
         r2.addWidget(QLabel("Index File:"))
@@ -118,6 +151,11 @@ class InferenceTab(QWidget):
         self.index_combo.setEditable(True)
         self.index_combo.addItems(_scan_indexes())
         self.index_combo.setMinimumWidth(200)
+        self.index_combo.setToolTip(
+            "FAISS index file (.index) from training.\n"
+            "Improves voice similarity to the training data.\n"
+            "Found in logs/<experiment>/ after training index step."
+        )
         r2.addWidget(self.index_combo, 1)
         pg.addLayout(r2)
 
@@ -128,6 +166,11 @@ class InferenceTab(QWidget):
         self.index_rate.setRange(0.0, 1.0)
         self.index_rate.setSingleStep(0.05)
         self.index_rate.setValue(0.78)
+        self.index_rate.setToolTip(
+            "Blend between AI output and index retrieval.\n"
+            "Higher = voice sounds more like the training data.\n"
+            "Too high may introduce artifacts. 0.5-0.8 is typical."
+        )
         r3.addWidget(self.index_rate)
         r3.addSpacing(16)
         r3.addWidget(QLabel("RMS Mix:"))
@@ -135,6 +178,12 @@ class InferenceTab(QWidget):
         self.rms_mix.setRange(0.0, 1.0)
         self.rms_mix.setSingleStep(0.05)
         self.rms_mix.setValue(1.0)
+        self.rms_mix.setToolTip(
+            "Volume envelope mixing rate.\n"
+            "0 = use the original audio's volume dynamics.\n"
+            "1 = use the converted voice's volume (recommended).\n"
+            "Lower values preserve original breathing and dynamics."
+        )
         r3.addWidget(self.rms_mix)
         r3.addSpacing(16)
         r3.addWidget(QLabel("Protect:"))
@@ -142,12 +191,22 @@ class InferenceTab(QWidget):
         self.protect.setRange(0.0, 0.5)
         self.protect.setSingleStep(0.01)
         self.protect.setValue(0.33)
+        self.protect.setToolTip(
+            "Protects voiceless consonants (s, t, p, k, etc.) from artifacts.\n"
+            "Lower = stronger protection, keeps consonants crisp.\n"
+            "0.33 is a good default. 0.5 = no protection."
+        )
         r3.addWidget(self.protect)
         r3.addSpacing(16)
         r3.addWidget(QLabel("Resample:"))
         self.resample_spin = QSpinBox()
         self.resample_spin.setRange(0, 48000)
         self.resample_spin.setValue(0)
+        self.resample_spin.setToolTip(
+            "Resample the output audio to this sample rate.\n"
+            "0 = keep the model's native sample rate (recommended).\n"
+            "Common values: 16000, 22050, 44100, 48000."
+        )
         r3.addWidget(self.resample_spin)
         pg.addLayout(r3)
 
@@ -156,6 +215,11 @@ class InferenceTab(QWidget):
         r4.addWidget(QLabel("F0 Curve File (optional):"))
         self.f0_path = QLineEdit()
         self.f0_path.setPlaceholderText("Leave blank for default F0")
+        self.f0_path.setToolTip(
+            "Optional custom pitch curve file.\n"
+            "Leave blank to auto-extract pitch from the input audio.\n"
+            "Advanced: supply a pre-edited F0 curve for manual pitch control."
+        )
         self.f0_browse = QPushButton("Browse")
         r4.addWidget(self.f0_path, 1)
         r4.addWidget(self.f0_browse)
